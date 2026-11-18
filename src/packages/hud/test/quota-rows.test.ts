@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Quota } from "@agent-hud/protocol";
 import {
+  blockHasReading,
   inRowOrder,
   quotaRowHidden,
   quotaRowKey,
@@ -57,4 +58,20 @@ test("showing a row hidden by its window alone keeps the other account's row hid
   assert.deepEqual(hidden, [session.id, `${other}/claude-weekly-fable`]);
   assert.ok(!quotaRowHidden(fable, hidden));
   assert.ok(quotaRowHidden(otherFable, hidden));
+});
+
+test("a block whose rows its layout all hid has no reading to draw", () => {
+  // Codex's one window, hidden in the panel's layout: the block has a
+  // reading, but none it may show, so it draws its last 24 hours instead of
+  // a heading over nothing.
+  const layout = {
+    hidden: false,
+    hiddenRows: [quotaRowKey(session)],
+    rows: [quotaRowKey(session)],
+  };
+  assert.equal(blockHasReading([session], undefined), true);
+  assert.equal(blockHasReading([session], { hidden: false }), true);
+  assert.equal(blockHasReading([session], layout), false);
+  // Another account's window is not the row that key hid.
+  assert.equal(blockHasReading([otherFable], layout), true);
 });

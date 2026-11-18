@@ -91,12 +91,20 @@ export const SourceProviderBlock = memo(function SourceProviderBlock({
       };
     });
   }, [rows, accountInfo]);
-  const missingReading = !snapshot.quotas.some((row) => row.vendor === vendor);
+  // Whether the block has a reading to draw: the rows its layout kept. When
+  // every row it reported is hidden the block draws what it draws with no
+  // reading at all — its last 24 hours — rather than a heading over nothing.
+  const reported = snapshot.quotas.some((row) => row.vendor === vendor);
+  // `rows` arrive already through `blockRows`, so empty means its layout kept
+  // none of them (quota-rows.ts `blockHasReading`).
+  const missingReading = rows.length === 0;
   // Without readings the block still says why, as a signed-out Claude Code
-  // asks to be signed in again.
-  const missingNotice = missingReading
-    ? missingReadingNotice(snapshot.providers, vendor)
-    : null;
+  // asks to be signed in again. A layout that hid the windows is not a
+  // reason: it has a reading, it just is not shown.
+  const missingNotice =
+    !reported && missingReading
+      ? missingReadingNotice(snapshot.providers, vendor)
+      : null;
   const vendorStatus = serviceNotice(
     snapshot.providers,
     vendor,

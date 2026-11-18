@@ -98,3 +98,14 @@ export function shownRows<T extends Quota>(
     (row) => blockRows([row], layout?.blocks?.[row.vendor]).length,
   );
 }
+
+/** Whether an agent's block has a reading to draw: the rows its layout kept.
+ * A block whose reported rows are all hidden is drawn as one with no reading
+ * at all (its last 24 hours, `recentUsage`), never as a heading over nothing
+ * — Open leaves the block out, and Next shows what the agent used instead. */
+export function blockHasReading<T extends Quota>(
+  rows: readonly T[],
+  block: PanelBlockLayout | undefined,
+): boolean {
+  return blockRows(rows, block).length > 0;
+}

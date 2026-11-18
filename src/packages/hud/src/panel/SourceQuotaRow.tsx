@@ -201,8 +201,12 @@ export function SourceQuotaRow({
         <span
           style={{
             ...tabular,
-            flex: "0 0 96px",
-            width: 96,
+            // Wide enough for the longest reset any calendar writes ("Tue 1
+            // Dec at 00:00" is the worst in English), which the 96 it had cut
+            // to "Tue 1 Dec at 00:". It may shrink when the line is tight, and
+            // ellipsises only then.
+            flex: "0 1 auto",
+            minWidth: 0,
             textAlign: "right",
             whiteSpace: "nowrap",
             overflow: "hidden",

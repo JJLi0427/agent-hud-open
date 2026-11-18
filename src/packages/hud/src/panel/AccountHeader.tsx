@@ -50,10 +50,14 @@ export function AccountHeader({
           minWidth: 0,
         }}
       >
+        {/* The account's own name, whole where the line has room: it gives way
+            last, after the plan and the read time (a name cut to "G…" names
+            no account). */}
         <MiddleTruncated
           text={name}
           style={{
-            flex: "0 1 auto",
+            flex: "1 1 auto",
+            minWidth: 0,
             color: colors.text,
             opacity: current ? 0.85 : 0.6,
           }}
@@ -71,7 +75,7 @@ export function AccountHeader({
         )}
         {!compact && (
           <>
-            <span style={{ flex: "1 1 8px", minWidth: 8 }} />
+            <span style={{ flex: "0 1 8px", minWidth: 4 }} />
             <WholeOrNothing color={colors.tertiary}>
               {accountReadLabel(account, now, language)}
             </WholeOrNothing>
