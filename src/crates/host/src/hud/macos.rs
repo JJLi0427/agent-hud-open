@@ -1,7 +1,6 @@
 //! Public AppKit HUD operations. The pinned creation-time adapter allocates an
 //! NSPanel subclass for HUDs while ordinary Tauri windows remain NSWindow.
 use super::{LogicalRect, Point, PointerKeys, Rect, Shared};
-use objc2::runtime::NSObjectProtocol;
 use objc2::MainThreadMarker;
 use objc2::{runtime::NSObjectProtocol, ClassType};
 use objc2_app_kit::{
@@ -22,9 +21,12 @@ use std::{
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 #[path = "macos/displays.rs"]
 mod displays;
+#[path = "macos/drag_key.rs"]
+mod drag_key;
 #[path = "macos/text_focus.rs"]
 mod text_focus;
 pub(super) use displays::{measure_screens, screen};
+pub(in crate::hud) use drag_key::{begin_drag_key, resign_drag_key};
 pub(super) use text_focus::{begin_text_focus, end_text_focus, TextFocusOrigin};
 
 /// NSEvent reports the pointer in one global point plane across displays.
@@ -116,33 +118,6 @@ pub(super) fn set_drag_cursor(app: &tauri::AppHandle, owner: &Shared, active: bo
     }
 }
 
-/// A drag takes keys so macOS draws the grabbing cursor, but it is not a text
-/// gesture: the page has nothing to type into and the drag is polled natively.
-/// Handing the web view first responder would make it the key window's input
-/// client, so AppKit would attach a Text Services session to a panel that gives
-/// the keyboard straight back. Only the explicit text lease does that.
-fn begin_drag_key(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let retained_window = window.clone();
-    on_main(window.app_handle(), move |_| {
-        let pointer = retained_window
-            .ns_window()
-            .map_err(|error| error.to_string())?;
-        if pointer.is_null() {
-            return Err("The HUD native window is unavailable".into());
-        }
-        let native = unsafe { &*pointer.cast::<NSWindow>() };
-        if native.isKindOfClass(objc2::class!(NSPanel)) {
-            native.makeKeyWindow();
-            if !native.isKeyWindow() {
-                return Err("The HUD panel could not obtain keyboard focus".into());
-            }
-            return Ok(());
-        }
-        native.makeKeyAndOrderFront(None);
-        Ok(())
-    })
-}
-
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
     fn CGDisplayCreateUUIDFromDisplayID(display: u32) -> Option<NonNull<CFUUID>>;
@@ -210,23 +185,6 @@ fn cursor(app: &tauri::AppHandle, active: bool) -> Result<(), String> {
             NSCursor::closedHandCursor().set();
         } else {
             NSCursor::arrowCursor().set();
-        }
-        Ok(())
-    })
-}
-
-fn resign_drag_key(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let retained_window = window.clone();
-    on_main(window.app_handle(), move |_| {
-        let pointer = retained_window
-            .ns_window()
-            .map_err(|error| error.to_string())?;
-        if !pointer.is_null() {
-            let native = unsafe { &*pointer.cast::<NSWindow>() };
-            if native.isKeyWindow() {
-                native.makeFirstResponder(None);
-                native.resignKeyWindow();
-            }
         }
         Ok(())
     })

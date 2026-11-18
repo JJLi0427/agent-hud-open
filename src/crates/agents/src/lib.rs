@@ -43,6 +43,7 @@ pub use transcript::{
 pub mod antigravity;
 pub mod ark;
 pub mod buddy;
+pub mod chelper;
 pub mod claude;
 pub mod cline;
 pub mod codex;

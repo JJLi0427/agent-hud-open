@@ -93,6 +93,7 @@ pub(super) fn run(
                         // Consume the request this job serves. A callback arriving
                         // during I/O remains pending for the next permitted pass.
                         state.force.remove(selected.0);
+                        state.urgent.remove(selected.0);
                         break Job::Account(selected.0, selected.1, state.account_homes.clone());
                     }
                     burst = None;

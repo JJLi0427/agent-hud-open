@@ -31,6 +31,15 @@ export function clientID(
   return session?.clientId ?? sourceID(snapshot, source);
 }
 
+/** Whether an agent's mark belongs on the HUD at all: its Settings choice says
+ * so, or it has made none. The panel, the statistics and the ledger keep the
+ * agent either way; this is the mark alone. */
+export function hudShown(snapshot: Snapshot, source: string): boolean {
+  return (
+    snapshot.sourcePreferences?.[sourceID(snapshot, source)]?.hud !== false
+  );
+}
+
 /** The agents a resting HUD in `mode` shows without a list, one per mark, in
  * Open's order (ScreenAgents.available):
  * - notch, the glow's parts: each window whose reading shows a level, then
@@ -41,7 +50,10 @@ export function clientID(
 export function restingAgents(snapshot: Snapshot, mode: HUDMode): string[] {
   const order: string[] = [];
   const add = (source: string) => {
-    if (!order.some((s) => vendorKey(s) === vendorKey(source)))
+    if (
+      hudShown(snapshot, source) &&
+      !order.some((s) => vendorKey(s) === vendorKey(source))
+    )
       order.push(source);
   };
   snapshot.quotas

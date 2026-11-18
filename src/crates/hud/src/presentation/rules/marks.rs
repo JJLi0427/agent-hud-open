@@ -67,6 +67,13 @@ const QUEUE_RECENCY_MS: i64 = 86_400_000;
 pub const QUEUE: &str = "queue";
 
 /// The agents a resting HUD in `mode` ("notch" or "simple") shows without a list, one
+/// Whether an agent's mark belongs on the HUD at all: its Settings choice says
+/// so, or it has made none (src/packages/hud/src/resting-agents.ts `hudShown`).
+/// The panel, the statistics and the ledger keep the agent either way.
+fn hud_shown(snapshot: &Value, source: &str) -> bool {
+    snapshot["sourcePreferences"][source_id(snapshot, source)]["hud"] != false
+}
+
 /// per mark, in order (src/packages/hud/src/resting-agents.ts `restingAgents`):
 /// - notch: each window whose reading shows a level, then each balance;
 /// - simple, and any mode it does not know: every window's agent, then the agents
@@ -78,7 +85,10 @@ pub const QUEUE: &str = "queue";
 pub fn resting_agents(snapshot: &Value, mode: &str, now: i64) -> Vec<String> {
     let mut order: Vec<String> = vec![];
     let mut add = |source: &str| {
-        if !source.is_empty() && !order.iter().any(|s| mark(s) == mark(source)) {
+        if !source.is_empty()
+            && hud_shown(snapshot, source)
+            && !order.iter().any(|s| mark(s) == mark(source))
+        {
             order.push(source.to_owned());
         }
     };

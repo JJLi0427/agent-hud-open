@@ -1,5 +1,6 @@
 import { FormatProvider } from "@agent-hud/ui/format-context";
 import { lazy, useMemo, type ReactNode } from "react";
+import { usePanelRefresh } from "./lib/use-panel-refresh.ts";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -140,8 +141,10 @@ function AppContent({
   const sourceMenu = (
     <SourceMenu statistics={statistics} hudVisible={hudVisible} act={act} />
   );
+  const panelRefresh = usePanelRefresh(refresh);
   const panelServices: PanelServices = {
     sources: snapshot?.sourcePreferences ?? store.sources,
+    ...panelRefresh,
     ends: surface ? hudEndsLink : undefined,
     inspect: surface ? hudInspect : undefined,
     openSession: async (session) => {

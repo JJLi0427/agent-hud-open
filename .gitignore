@@ -12,6 +12,9 @@ src-tauri/gen/
 test-results/
 playwright-report/
 .build/
+# Build leftovers at the repository root: bun's compiled output is a binary
+# blob, never a source file.
+.*.bun-build
 # Local agent worktrees and settings
 .claude/
 # Local environments, logs and editors

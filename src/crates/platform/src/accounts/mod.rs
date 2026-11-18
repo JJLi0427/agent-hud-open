@@ -51,6 +51,8 @@ pub(super) struct AccountContext {
     pub children: Arc<Mutex<Vec<Weak<Mutex<Child>>>>>,
     pub cancelled: Arc<AtomicBool>,
     pub copilot_consent: Arc<AtomicBool>,
+    /// Whether the gateway's balance may be read (`chelper::account::CONSENT`).
+    pub gateway_consent: Arc<AtomicBool>,
     /// The relay addresses the owner agreed to read (`relays::CONSENT`).
     pub relay_consent: Arc<Mutex<HashSet<String>>>,
     /// A web sign-in being tried before it is kept (`WebSignInDesk::accepts`):
@@ -100,6 +102,10 @@ struct PageReading {
 struct Control {
     stopped: bool,
     force: HashSet<String>,
+    /// Providers whose reading the owner asked for by hand: read now, ignoring
+    /// the account spacing that keeps background reads off a provider's API
+    /// (a click is not a poll).
+    urgent: HashSet<String>,
     enabled: HashSet<String>,
     /// Sources with a turn running that was heard from in the last 300 s.
     running: HashSet<String>,
@@ -179,6 +185,7 @@ impl AccountService {
             children: Arc::new(Mutex::new(Vec::new())),
             cancelled: Arc::new(AtomicBool::new(false)),
             copilot_consent: Arc::new(AtomicBool::new(false)),
+            gateway_consent: Arc::new(AtomicBool::new(false)),
             relay_consent: Arc::new(Mutex::new(HashSet::new())),
             trial_web: None,
         };
@@ -186,6 +193,7 @@ impl AccountService {
             state: Mutex::new(Control {
                 stopped: false,
                 force: HashSet::new(),
+                urgent: HashSet::new(),
                 enabled,
                 running: HashSet::new(),
                 live: HashSet::new(),
@@ -255,7 +263,10 @@ impl AccountService {
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
         let enabled = state.enabled.clone();
-        state.force.extend(enabled);
+        state.force.extend(enabled.iter().cloned());
+        // The panel's Refresh is a person asking, not a timer: it does not
+        // wait out the spacing background reads keep.
+        state.urgent.extend(enabled);
         self.shared.wake.notify_all();
     }
 }

@@ -15,6 +15,7 @@ The implementation follows the original Swift account readers:
 | Cursor       | Read-only Cursor account SQLite database; a sealed sign-in (`cursor-safe-storage:v1:`) opens with Cursor's "Cursor Safe Storage" keychain item, which macOS asks about once (Electron files it under "Cursor Key", older builds under "Cursor") | Current usage-summary endpoint and billing-cycle reset; for an account merged into SuperGrok (plan `super`), or when the summary is refused, the period Cursor itself shows (`DashboardService/GetCurrentPeriodUsage`): its percentages where it reports them (a merged plan), else the cents spent of each limit (a plan metered in dollars), as Cursor's usage bar works them out; a meter with neither is not shown |
 | Grok Bot     | The Bot's cache (`sand-client-persistence`), and Cursor's sign-in when it is the Bot's account | The Bot's weekly meter (`GetSandUsageStatus`) with Cursor's sign-in to the same account, which also names the account; else the Bot's cache. A server that misses an answer is a passing failure, so the last reading stays rather than an older cache; any other server failure falls back to the cache. Each bot's daily tokens from `GetDailySpendByCategory`, none for a merged account |
 | DeepSeek     | Harness settings and versioned credential reference; the key Claude Code (`ANTHROPIC_BASE_URL`) or Codex (`[model_providers.*]` `base_url`) sends to `api.deepseek.com`, and the API key of Pi's `deepseek` provider in `auth.json`, or of a Pi provider whose `models.json` `baseUrl` is on that host (Open #64) | Official API balance endpoint and response currency; each client's own key is its own balance, labelled with the clients that send it, and a key Harness shares with them is read once |
+| Chelper      | Claude Code's own gateway address and key, or the key saved in Agent HUD | The gateway's public status and key usage, the console's self-service budget and days |
 | Kimi, GLM, OpenCode Go | Keys other clients hold: the environment, Claude Code's settings files (as for relays below), OpenCode, Pi, Kimi Code, WorkBuddy | Each plan's own usage endpoint |
 | MiniMax      | Plan keys other clients send to MiniMax's own API: `MINIMAX_CODING_API_KEY`, `MINIMAX_API_KEY`, Pi's `MINIMAX_CN_API_KEY`, Claude Code's `ANTHROPIC_BASE_URL`, Codex's `[model_providers.*]`, OpenCode's and Pi's sign-ins; pay-as-you-go keys (`sk-api-`) are left out | `GET /v1/token_plan/remains` on the key's platform (`www.minimax.io`, or `www.minimax.cn` for China), else the older Coding Plan `/v1/api/openplatform/coding_plan/remains`; a key no client places on a platform is tried on the other when the first refuses it. Each model family's 5-hour and weekly windows; prompts used of the total where the plan counts them; a key with no active plan (status 2062) shows nothing, with a notice, rather than a failed reading; read every five minutes whatever this computer does, since clients not read here and other devices spend the plan too |
 | Volcengine Ark | An installed `arkcli`, signed in through its own login; Agent HUD reads none of its credentials | `arkcli usage plan --format json`, with implicit updates off (`ARKCLI_NO_UPDATE_NOTIFIER=1`): Coding Plan and Agent Plan, personal and team, 5-hour, weekly and monthly windows; a plan the CLI could not read is named in a notice; no model call; read every five minutes whatever this computer does, since clients not read here and other devices spend the plan too |
@@ -324,6 +325,50 @@ facts require matching source paths, parser codecs, file signatures and complete
 retained-history state; business event IDs stay stable for incremental updates.
 The original retained history is not described as all-time coverage. Ineligible
 files keep their bounded incremental replay and an explicit coverage state.
+
+## Chelper, the coding gateway
+
+A company coding gateway (如影模型网关, `aicoding.gwm.cn`) is not a relay: it is
+the account an organisation gives its people, and every client here can be
+routed to it. Its reader (`agents::chelper`) reads it only with the key Claude
+Code already sends it — the one in `~/.claude/settings.json` `env`, or the one
+the owner saves in Agent HUD — and only on the gateway's own two hosts:
+
+| Host | Endpoint | What it gives |
+| --- | --- | --- |
+| `aicoding.gwm.cn` | `/api/status` | What one quota unit is worth, and in what money |
+| `aicoding.gwm.cn` | `/api/usage/token/` | The key's balance, in quota units |
+| `aicoding-admin.gwm.cn` | `/api/self/token` | The same balance in money, the month's budget and what of it is used |
+| `aicoding-admin.gwm.cn` | `/api/self/usage/daily?days=14` | Each day's spend, calls and tokens |
+
+It produces a balance row whose amount is the gateway's own arithmetic
+(`total_available × usd_exchange_rate ÷ quota_per_unit`), and one monthly
+budget window whose percentage is `month_used ÷ month_total_quota`, resetting
+at Beijing's midnight on the first of the month. Because the gateway counts
+those calls itself, the balance carries a `reported` block instead of relying
+on the local ledger: Core turns it into the same `periods.{day,week,month}`
+shapes — cost, pace, the balance running out, a series — that every other
+balance has, with `estimate` set to `reported-by-provider` (`billing_metrics`).
+The console reports two weeks, so a longer window says its cost holds only the
+days it reports.
+
+Its mark on the HUD is the owner's to switch off, like any agent's: Settings →
+Agents → *Show on the HUD* (`sources.<id>.hud`). Turning it off removes the
+mark from the resting HUD, the Dynamic dock and the notch glow in every mode; the
+expanded panel's block, the statistics and the ledger keep the agent, so the
+balance and the month's budget stay readable.
+
+The expanded HUD panel's footer has a **Refresh** between Settings and Statistics:
+it reads every account again at once (a hand gesture waits 5 s after the last
+read, against the 60 s the background pace keeps) and re-asks the panel's own
+sections. A failed account read is retried as soon as that spacing allows, for
+ten minutes, so a connection that comes back stops showing an error within about
+a minute; after ten minutes of failure the provider's own 300 s pace returns, so
+a refused key is not asked again and again.
+
+Nothing is asked of the gateway until the switch is on (`readChelperBalance`,
+on by default because the key is already there); an unreachable console leaves
+the gateway's own balance standing and keeps its reason as the notice.
 
 ## Relays
 

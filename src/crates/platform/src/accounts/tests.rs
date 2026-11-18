@@ -43,6 +43,7 @@ fn control() -> Control {
     Control {
         stopped: false,
         force: HashSet::new(),
+        urgent: HashSet::new(),
         enabled: HashSet::new(),
         running: HashSet::new(),
         live: HashSet::new(),

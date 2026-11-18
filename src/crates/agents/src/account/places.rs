@@ -57,6 +57,7 @@ pub fn endpoint(provider: &str, base: Option<&str>) -> Result<String, String> {
         "kimi" => "https://api.kimi.com/coding/v1",
         "glm" => "https://api.z.ai/api/coding/paas/v4",
         "opencode" => "https://opencode.ai/zen/go/v1",
+        "chelper" => "https://aicoding.gwm.cn",
         _ => return Err(tr!("Unsupported configurable provider")),
     };
     let raw = base.unwrap_or(default).trim_end_matches('/');
@@ -85,6 +86,12 @@ pub fn endpoint(provider: &str, base: Option<&str>) -> Result<String, String> {
                 && matches!(url.path(), "/api/coding/paas/v4" | "/api/anthropic")
         }
         "opencode" => url.host_str() == Some("opencode.ai") && url.path() == "/zen/go/v1",
+        // The gateway is read on its own two hosts and nowhere else.
+        "chelper" => {
+            url.host_str()
+                .is_some_and(|host| crate::chelper::gateway_host(host).is_some())
+                && matches!(url.path(), "" | "/")
+        }
         _ => false,
     };
     if !allowed {

@@ -79,6 +79,8 @@ export interface PanelNode {
 export interface SourcePreferences {
   live?: boolean;
   reminders?: boolean;
+  /** Whether this agent's mark belongs on the HUD; the panel keeps it either way. */
+  hud?: boolean;
 }
 export interface AppSettings {
   /** Live status and completion reminders for every client; each client's
@@ -111,6 +113,8 @@ export interface AppSettings {
    * while client hooks are on. */
   optInApprovals?: string[];
   readCopilotQuota?: boolean;
+  /** Whether the coding gateway's balance, monthly budget and daily spend are read with the gateway key Claude Code already holds. */
+  readChelperBalance?: boolean;
   /** The relay hosts whose balance may be read with the key the client already sends them. */
   relayReading?: string[];
   /** The owner's prices per million tokens, by model as recorded (`model` or `model#route`). */

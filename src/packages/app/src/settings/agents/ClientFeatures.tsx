@@ -49,6 +49,9 @@ export function ClientFeatures({
   const on = client.enabled;
   const liveEverywhere = settings.liveStatus !== false;
   const live = preferences[client.id]?.live !== false;
+  // Its mark on the HUD: the panel, the statistics and the ledger keep the
+  // agent either way, so this is the mark alone.
+  const hud = preferences[client.id]?.hud !== false;
   const reminders = preferences[client.id]?.reminders !== false;
   const answerEverywhere = settings.answerInHud !== false;
   const answerOff = settings.answerOff ?? [];
@@ -70,6 +73,18 @@ export function ClientFeatures({
       {installs.plugin}
       {can(client, "live") && (
         <>
+          <ToggleRow
+            title={t("Show on the HUD")}
+            subtitle={t(
+              "Its mark on the resting HUD and in the Dynamic dock. Its panel block and statistics stay.",
+            )}
+            checked={on && hud}
+            disabled={pending || !on}
+            reason={why(true)}
+            change={(value) =>
+              void perform(() => onPreferences(client.id, { hud: value }))
+            }
+          />
           <ToggleRow
             title={t("Live status")}
             checked={on && liveEverywhere && live}

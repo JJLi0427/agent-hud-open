@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
+import { useState } from "react";
 import {
   ChartNoAxesColumnIncreasing,
   CircleArrowDown,
+  RefreshCw,
   Settings,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -20,6 +22,7 @@ export function PanelFooter({
   onStats,
   update,
   onUpdate,
+  refresh,
 }: {
   language: Language;
   colors: ReturnType<typeof palette>;
@@ -29,8 +32,14 @@ export function PanelFooter({
   onStats?: () => void;
   update?: HUDUpdateNotice | null;
   onUpdate?: () => void;
+  /** Read the accounts and this panel again now. Absent where the host has no
+   * such gesture, which hides the button rather than failing it. */
+  refresh?: () => Promise<unknown>;
 }) {
   const t = translator(language);
+  // The Refresh gesture: in flight, and what it could not do.
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const footerButton = (color: string): CSSProperties => ({
     width: 28,
     height: 28,
@@ -92,6 +101,66 @@ export function PanelFooter({
             </Button>
           </motion.span>
         )}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {refreshError && (
+            <span
+              role="alert"
+              style={{
+                fontSize: 10,
+                maxWidth: 190,
+                color: colors.critical,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={refreshError}
+            >
+              {refreshError}
+            </span>
+          )}
+          {refresh && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("Refresh data")}
+              title={t("Refresh data")}
+              disabled={refreshing}
+              onClick={() => {
+                if (refreshing) return;
+                setRefreshing(true);
+                setRefreshError(null);
+                // The accounts read on their own after the request returns, so
+                // the mark turns for a moment past the answer rather than
+                // flickering off before anything has landed.
+                void refresh()
+                  .catch((error) => setRefreshError(String(error)))
+                  .finally(() => {
+                    window.setTimeout(() => setRefreshing(false), 1_200);
+                  });
+              }}
+              style={footerButton(
+                refreshing ? colors.accent : colors.secondary,
+              )}
+            >
+              {/* It turns while the reading is out, and stands still when the
+                HUD's animations are off or the system asks for less motion. */}
+              <motion.span
+                style={{ display: "inline-flex" }}
+                animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+                transition={
+                  refreshing
+                    ? { duration: 0.9, ease: "linear", repeat: Infinity }
+                    : { duration: 0.2 }
+                }
+              >
+                <RefreshCw
+                  style={{ width: 14, height: 14 }}
+                  strokeWidth={1.7}
+                />
+              </motion.span>
+            </Button>
+          )}
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"

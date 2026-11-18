@@ -271,6 +271,7 @@ export const SourceHoverPanel = memo(function SourceHoverPanel({
         onStats={onStats}
         update={update}
         onUpdate={onUpdate}
+        refresh={services?.refresh}
       />
     </div>
   );

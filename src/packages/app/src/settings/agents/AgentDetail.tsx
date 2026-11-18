@@ -154,6 +154,30 @@ export function AgentDetail({
         pending={pending}
         installs={installs}
       />
+      {source.id === "chelper" && (
+        <Section
+          footer={t(
+            "aicoding.gwm.cn and aicoding-admin.gwm.cn, and nowhere else.",
+          )}
+        >
+          <ToggleRow
+            title={t("Read gateway balance")}
+            subtitle={t(
+              "Use the gateway key Claude Code already sends to read the balance, the month's budget and each day's spend.",
+            )}
+            checked={snapshot.settings.readChelperBalance !== false}
+            disabled={pending}
+            change={(value) =>
+              void perform(() =>
+                action("set_setting", {
+                  key: "readChelperBalance",
+                  value,
+                }),
+              )
+            }
+          />
+        </Section>
+      )}
       {openGroup ? (
         <ClientAccounts
           t={t}

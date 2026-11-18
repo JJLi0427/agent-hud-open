@@ -25,6 +25,9 @@ impl crate::AgentHudCore {
                 if let Some(object) = row.as_object_mut() {
                     object.remove("consumerHome");
                     object.remove("consumerRoutes");
+                    // A provider's own report is turned into `metrics` above;
+                    // pages read that, never the day list it came from.
+                    object.remove("reported");
                 }
                 row
             })

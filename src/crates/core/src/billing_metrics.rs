@@ -1,7 +1,13 @@
 //! API balances consume only explicitly linked billing routes from the same
-//! ledger. A familiar model name or today's login does not bind historical use.
+//! ledger. A familiar model name or today's login does not bind historical use,
+//! and a provider that reports its own spending is neither: its days are what
+//! it says they are, never what this Mac's logs would have made them.
 use super::*;
 use crate::l10n::tr;
+
+#[path = "billing_metrics/reported.rs"]
+mod reported;
+use reported::reported;
 #[derive(Default)]
 pub(super) struct Cache {
     revision: Option<u64>,
@@ -55,6 +61,11 @@ impl Cache {
         roots: &[(PathBuf, &'static str)],
         pending: &HashMap<&str, Option<i64>>,
     ) -> Value {
+        // A provider that reports its own spending answers first: the ledger
+        // below holds none of those calls, so it could only say nothing.
+        if let Some(reported) = reported(row, now) {
+            return reported;
+        }
         let bound = bound(row, roots);
         let currency = row["currency"].as_str().unwrap_or("");
         let index = match currency {

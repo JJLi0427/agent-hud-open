@@ -56,6 +56,12 @@ export interface PanelServices {
     method: PanelQueryMethod,
     params: Record<string, unknown>,
   ): Promise<unknown>;
+  /** Read everything again now: the accounts' own numbers and this panel's
+   * sections. The footer's Refresh is the only caller. */
+  refresh?(): Promise<unknown>;
+  /** Bumped by `refresh` after it returns, so sections ask again even where
+   * their data's revision did not move. */
+  refreshed?: number;
   selectSession?(session: Session): void;
   selectProvider?(provider: string): void;
   /** Resolves false when the session could not be reached (the reply card then offers a retry). */
@@ -121,7 +127,9 @@ export function usePanelQuery<T>(
   enabled: boolean,
 ) {
   const services = usePanelServices();
-  const key = JSON.stringify([method, revision, params]);
+  // A refresh re-asks even a question whose revision did not move.
+  const sequence = services?.refreshed ?? 0;
+  const key = JSON.stringify([method, revision, sequence, params]);
   const base = JSON.stringify([
     method,
     { ...params, from: undefined, to: undefined },
@@ -166,7 +174,7 @@ export function usePanelQuery<T>(
           }),
         ),
     );
-  }, [key, base, enabled, services]);
+  }, [key, base, enabled, services, sequence]);
   return {
     ...shownAnswer(answer, key, base, last),
     available: Boolean(services),

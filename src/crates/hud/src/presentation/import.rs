@@ -58,7 +58,7 @@ impl Presentation {
         if let Some(sources) = fields.get("sources").and_then(Value::as_object) {
             for (id, prefs) in sources {
                 let mut values = Map::new();
-                for key in ["live", "reminders"] {
+                for key in ["live", "reminders", "hud"] {
                     if let Some(value) = prefs.get(key).filter(|v| v.is_boolean()) {
                         values.insert(key.into(), value.clone());
                     }

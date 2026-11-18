@@ -119,6 +119,9 @@ impl Host for AccountContext {
                 .unwrap_or_else(PoisonError::into_inner)
                 .contains(relay);
         }
+        if setting == agent_hud_agents::chelper::account::CONSENT {
+            return self.gateway_consent.load(Ordering::Acquire);
+        }
         setting == agent_hud_agents::copilot::account::CONSENT
             && self.copilot_consent.load(Ordering::Acquire)
     }

@@ -38,7 +38,10 @@ pub(super) fn due_after(facts: &Provider, entry: &Entry, state: &Control) -> Dur
     let asked = entry.retry_at.map_or(Duration::ZERO, |at| {
         at.saturating_duration_since(Instant::now())
     });
-    let spacing = Duration::from_secs(60).saturating_sub(elapsed);
+    // A reading the owner asked for by hand is not a poll: it waits only long
+    // enough that a double click cannot fire twice.
+    let urgent = state.urgent.contains(provider);
+    let spacing = Duration::from_secs(if urgent { 5 } else { 60 }).saturating_sub(elapsed);
     let now = chrono::Utc::now().timestamp_millis();
     let resets = entry
         .reading
@@ -101,6 +104,6 @@ pub(super) fn due_after(facts: &Provider, entry: &Entry, state: &Control) -> Dur
             (reset + entry.spread as i64 * 1000 - now).max(0) as u64,
         ));
     }
-    // Account requests are never <60s apart.
+    // Background account requests are never 60 s apart; a person asking, 5 s.
     pause.max(spacing).max(asked)
 }

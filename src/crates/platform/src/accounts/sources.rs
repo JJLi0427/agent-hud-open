@@ -21,6 +21,16 @@ impl AccountService {
             state.entries.remove("copilot");
             state.force.insert("copilot".into());
         }
+        let gateway = snapshot["settings"][agent_hud_agents::chelper::account::CONSENT] == true;
+        if self.context.gateway_consent.swap(gateway, Ordering::AcqRel) != gateway {
+            let mut state = self
+                .shared
+                .state
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            state.entries.remove("chelper");
+            state.force.insert("chelper".into());
+        }
         let relays: HashSet<String> = snapshot["settings"][agent_hud_agents::relays::CONSENT]
             .as_array()
             .into_iter()

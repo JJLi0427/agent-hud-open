@@ -160,6 +160,7 @@ impl crate::AgentHudCore {
             | "liveStatus"
             | "answerInHud"
             | "autoApprove"
+            | "readChelperBalance"
             | "clientHooks"
             | "launchAtLogin"
             | "hudVisible"

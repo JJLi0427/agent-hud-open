@@ -13,7 +13,7 @@ mod relays;
 
 pub(super) use relays::{add_relay_source, relay_sources, remove_relay_source, set_relay_kind};
 
-const PROVIDERS: [&str; 4] = ["deepseek", "kimi", "glm", "opencode"];
+const PROVIDERS: [&str; 5] = ["deepseek", "kimi", "glm", "opencode", "chelper"];
 fn folder(ctx: &AccountContext) -> PathBuf {
     ctx.data_dir.join("account-credentials")
 }
@@ -106,10 +106,11 @@ pub(super) fn status(ctx: &AccountContext) -> Value {
         .into_iter()
         .map(|provider| {
             let configured = read(ctx, provider).is_ok_and(|value| value.is_some());
-            let fields = if provider == "glm" {
-                vec!["apiKey", "baseUrl", "organization", "project"]
-            } else {
-                vec!["apiKey", "baseUrl"]
+            let fields = match provider {
+                "glm" => vec!["apiKey", "baseUrl", "organization", "project"],
+                // The gateway is one address; only its key is the owner's to set.
+                "chelper" => vec!["apiKey"],
+                _ => vec!["apiKey", "baseUrl"],
             };
             json!({"provider":provider,"configured":configured,"configurableFields":fields})
         })
