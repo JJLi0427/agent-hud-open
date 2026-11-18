@@ -43,4 +43,4 @@ tempfile = "3"
 # Mac HUD panels are selected before allocation, and the Windows runner and Linux window set are counted
 # atomically (Open #51); see docs/tao-panel-patch.md.
 [patch.crates-io]
-tao = { git = "https://github.com/jazzenchen/tao", rev = "e5c8659a4b91a44e806bafcd63ece1f11fcba503" }
+tao = { git = "https://github.com/jazzenchen/tao", rev = "1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3" }

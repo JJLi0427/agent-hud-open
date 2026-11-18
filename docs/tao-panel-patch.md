@@ -1,13 +1,13 @@
 # Tao panel patch
 
-On macOS the HUD must be a nonactivating `NSPanel` from the moment it is allocated, and upstream Tao cannot create one. The workspace therefore takes `tao` from a public fork that carries three small commits on top of the released 0.37.1: the panel, and a Windows and a Linux fix for a crash (see [The Windows runner count](#the-windows-runner-count)). `tauri`, `tauri-runtime` and `tauri-runtime-wry` come unmodified from crates.io.
+On macOS the HUD must be a nonactivating `NSPanel` from the moment it is allocated, and upstream Tao cannot create one. The workspace therefore takes `tao` from a public fork that carries four small commits on top of the released 0.37.1: the panel, a Windows and a Linux fix for a crash (see [The Windows runner count](#the-windows-runner-count)), and a macOS teardown fix (see [The macOS teardown](#the-macos-teardown)). `tauri`, `tauri-runtime` and `tauri-runtime-wry` come unmodified from crates.io.
 
 ## Source
 
 | | |
 | --- | --- |
-| Fork | https://github.com/jazzenchen/tao, branch `agent-hud/nonactivating-panel-arc-runner` (the panel commit `4a401fab`, then the Windows and Linux commits) |
-| Pinned rev | `e5c8659a4b91a44e806bafcd63ece1f11fcba503` |
+| Fork | https://github.com/jazzenchen/tao, branch `agent-hud/teardown-release` (the panel commit `4a401fab`, the Windows `04fe4478` and Linux `e5c8659a` commits, then the teardown commit `1f3d6b2f`) |
+| Pinned rev | `1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3` (local only until pushed; see Upgrading) |
 | Base | tag `tao-v0.37.1` (`37b7e8bc90a050e93be988df636f322c3ef147b6`) |
 | Selected by | `[patch.crates-io]` in the root `Cargo.toml`; `Cargo.lock` records the `git+https://github.com/jazzenchen/tao?rev=…` source |
 | License | Apache-2.0, upstream's `LICENSE` and `LICENSE.spdx` unchanged |
@@ -20,6 +20,8 @@ The base tag's `src/` is byte-identical to the crates.io `tao-0.37.1` package (s
 - `src/platform_impl/macos/window.rs`: the scope, the builder attribute, class selection, panel style and flags, creation ownership, the focusable setter, and a unit test for the scope.
 - `src/platform_impl/macos/window/window_class.rs` (new): the `TaoWindow` and `TaoNonactivatingPanel` classes.
 - `Cargo.toml`: the `objc2-app-kit` feature `NSPanel`.
+
+The fourth commit changes `src/platform_impl/macos/view.rs` and `src/platform_impl/macos/window_delegate.rs`; [The macOS teardown](#the-macos-teardown) describes it.
 
 ## What the patch does
 
@@ -46,9 +48,28 @@ Only the count crosses threads. The runner's `Cell` and `RefCell` state is still
 
 A third commit does the same for Linux, where the window target shares its set of window ids (`windows` in `src/platform_impl/linux/event_loop.rs`) through an `Rc`. No Linux crash has been reported; the weakness is the same.
 
+## The macOS teardown
+
+Upstream 0.37.1 frees its own state in `TaoView.dealloc` and `TaoWindowDelegate.dealloc` and returns there, and neither `initWithTao` observer is ever removed. Two consequences:
+
+- `[super dealloc]` never runs. For the view that means AppKit never lifts it off its window and never tells Text Services its input client is gone, so the `NSTextInputClient` conformance registered on `TaoView` stays attached to a view whose `ViewState` was freed. For the delegate, the `NSWindow` back reference is never cleared.
+- A notification centre does not retain its observers. `NSViewFrameDidChangeNotification` is registered with `object: this` on the default centre, and `AppleInterfaceThemeChangedNotification` with `object: nil` on the *distributed* centre. Both keep messaging a `dealloc`ed object; the distributed one is unfiltered, so every live window's delegate is a recipient and a stale one is reached on an ordinary system appearance change. `frameDidChange:` and `effectiveAppearanceDidChange:` then dereference the freed `taoState` through `with_state`/`get_ivar`, which validate nothing.
+
+The fourth commit (`1f3d6b2f`) removes both observers before the state is freed and takes the superclass deallocator in both deallocators. Superclass sends stay lexical, as above: `NSView` for the view and `NSResponder` for the delegate, never one derived from `object_getClass`.
+
+What the crash reports showed: 42 `.ips` files over one day in November 2026, most of them carrying a register or faulting address of `0x79642e74656e65xx`, which decodes to ASCII `…enet.dy`. That is a fragment of that machine's `MACSEC` environment variable, `/Users/mac/Library/MacSec/libesafenet.dylib`, which the app copies into its own heap on every `std::env::vars()` pass (`platform/src/discovery.rs`). The corporate DLP dylib was not mapped into the app, so the string was only ever a canary: its appearance means a freed heap block that used to hold that string is being read or written as an object. The top frame moved between reports (`objc_release`, `CFEqual`, `_xzm_xzone_malloc_freelist_outlined`, `CFRelease`, `ERR_put_error`, `RBSAssertion`) and three landed on the input-method path (`IMKInputSession_Modern activate`, `MyActivateTSMDocument` -> `RemoveEventLoopTimer` -> `CFRelease`). A write through a freed `taoState` — `frame_did_change:` storing `tracking_rect` — is exactly that kind of corruption, which is why libmalloc reported "memory corruption of free block" in most of the reports.
+
+### Where validation stands
+
+The rebuilt app crashed three times on the new rev within an hour: inside WebKit's `ProcessThrottler` assertion cache, in `aws-lc`'s `ERR_put_error` on a reqwest thread, and in `std::env::vars_os` reached from `CommandEnv::capture` inside `Command::spawn` on the `agenthud-accounts` thread. All carried the same canary, so the heap corruption was **not** fully explained by the two teardown bugs; they remove a proven writer of freed memory but not the only one.
+
+What the day's reports said about where the damage surfaces: 23 of 43 fault on the main thread in AppKit/the run loop, 12 in allocator or CF internals with no recognisable owner, 4 in the account-engine `Command::spawn`, 2 in sqlite, 1 in each of WebKit and rustls. The canary appeared in 41 of the 43 and also in 4 `codex` reports, so it identifies a class of freed-block reuse rather than this program.
+
+So: treat the teardown fix as necessary and shipped, not as sufficient. The next step if reports continue is an ASan build — `cargo +nightly build` with `-Zsanitizer=address` links except for `tauri-utils` (`ld: initializer pointer has no target`), so it needs `-Zbuild-std` or a `tauri-utils` rebuild without the offending generated object before it can run.
+
 ## How the HUD uses it
 
-An explicit text-input lease makes the panel key without activating Agent HUD (`begin_text_focus` in `hud/macos.rs`). Releasing the lease clears the responder and orders the panel out and straight back in, so WindowServer returns keys to the still-active underlying application. Ordinary hover and buttons do not grant the lease. A HUD drag holds key the same way, because macOS takes the cursor only from the key window. The `NSWindow` fallback for a non-panel host remains in place.
+An explicit text-input lease makes the panel key without activating Agent HUD (`begin_text_focus` in `hud/macos/text_focus.rs`). Releasing the lease clears the responder and orders the panel out and straight back in, so WindowServer returns keys to the still-active underlying application. Ordinary hover and buttons do not grant the lease. A HUD drag holds key the same way, because macOS takes the cursor only from the key window, but it does not hand the web view first responder (`begin_drag_key` in `hud/macos.rs`): a drag is polled natively and types nothing, and making the web view the key window's input client would attach a Text Services session to a panel that gives the keyboard straight back. The `NSWindow` fallback for a non-panel host remains in place.
 
 ## Rejected alternatives
 
@@ -58,10 +79,16 @@ An explicit text-input lease makes the panel key without activating Agent HUD (`
 
 ## Upgrading
 
-Status on 2026-10-20: crates.io's latest `tao` is 0.37.1. tauri-apps/tao#1368 (the creation over-retain, plus the missing `[super dealloc]` in `TaoView` and `TaoWindowDelegate`, which this patch lacks) is merged and waits for the release PR tauri-apps/tao#1357. Maintainer draft tauri-apps/tao#1387 moves `TaoWindow` to `define_class!`. Upstream has no NSPanel support (tauri-apps/tao#414, tauri-apps/tauri#13034).
+Status on 2026-10-20: crates.io's latest `tao` is 0.37.1. tauri-apps/tao#1368 (the creation over-retain, plus the missing `[super dealloc]` in `TaoView` and `TaoWindowDelegate`, which the fourth fork commit now carries together with the observer removal upstream still lacks) is merged and waits for the release PR tauri-apps/tao#1357. Maintainer draft tauri-apps/tao#1387 moves `TaoWindow` to `define_class!`. Upstream has no NSPanel support (tauri-apps/tao#414, tauri-apps/tauri#13034).
 
 - **When tao 0.37.2 ships** (tauri-apps/tao#1357, which includes tauri-apps/tao#1368): rebase onto tag `tao-v0.37.2` and drop the creation-retain hunk, since upstream makes the same `Retained::from_raw` change. A trial rebase onto upstream `dev` (`176eaef`) on 2026-10-20 conflicted in `Cargo.toml` (keep upstream's new `NSWindowScripting` next to `NSPanel`) and in three `window.rs` hunks: the imports, `create_window` (upstream now returns early with `?`; re-add the panel flags there), and the old `TaoWindow` class block (keep `mod window_class;`). Upstream also moved ObjC callbacks to `extern "C-unwind"` (tauri-apps/tao#1354); do the same in `window_class.rs`.
 - **When tauri-apps/tao#1387 lands**: rewrite `window_class.rs` with `define_class!`. Upstream's `TaoWindow` then owns its ivars and its setter no longer leaks, so the panel becomes a second `define_class!` class with `NSPanel` as superclass and the same ivars. The creation hint is then the only lasting change.
+
+The pinned rev `1f3d6b2f` currently exists only in the local clone at `~/code/tao-agent-hud` (branch `agent-hud/teardown-release`), not on the remote. Cargo resolves it here because that clone's objects were fetched into the local git cache at `~/.cargo/git/db/tao-71f5dc7428779c60`; **any other checkout, CI run or fresh clone will fail to resolve `tao` until the branch is pushed.** To publish, without force-pushing either branch an earlier rev is pinned to:
+
+```
+git -C ~/code/tao-agent-hud push origin agent-hud/teardown-release
+```
 
 Steps:
 

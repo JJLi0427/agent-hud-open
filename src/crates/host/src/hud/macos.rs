@@ -1,6 +1,7 @@
 //! Public AppKit HUD operations. The pinned creation-time adapter allocates an
 //! NSPanel subclass for HUDs while ordinary Tauri windows remain NSWindow.
 use super::{LogicalRect, Point, PointerKeys, Rect, Shared};
+use objc2::runtime::NSObjectProtocol;
 use objc2::MainThreadMarker;
 use objc2::{runtime::NSObjectProtocol, ClassType};
 use objc2_app_kit::{
@@ -104,7 +105,7 @@ pub(super) fn set_drag_cursor(app: &tauri::AppHandle, owner: &Shared, active: bo
     if let Some(window) = app.get_webview_window(&owner.label) {
         if active && !HELD_KEY.swap(true, Ordering::AcqRel) {
             let _ = window.set_focusable(true);
-            let _ = begin_text_focus(&window);
+            let _ = begin_drag_key(&window);
         } else if !active && HELD_KEY.swap(false, Ordering::AcqRel) {
             let _ = resign_drag_key(&window);
             let _ = window.set_focusable(false);
@@ -113,6 +114,33 @@ pub(super) fn set_drag_cursor(app: &tauri::AppHandle, owner: &Shared, active: bo
     if let Err(error) = cursor(app, active) {
         eprintln!("Agent HUD drag cursor: {error}");
     }
+}
+
+/// A drag takes keys so macOS draws the grabbing cursor, but it is not a text
+/// gesture: the page has nothing to type into and the drag is polled natively.
+/// Handing the web view first responder would make it the key window's input
+/// client, so AppKit would attach a Text Services session to a panel that gives
+/// the keyboard straight back. Only the explicit text lease does that.
+fn begin_drag_key(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let retained_window = window.clone();
+    on_main(window.app_handle(), move |_| {
+        let pointer = retained_window
+            .ns_window()
+            .map_err(|error| error.to_string())?;
+        if pointer.is_null() {
+            return Err("The HUD native window is unavailable".into());
+        }
+        let native = unsafe { &*pointer.cast::<NSWindow>() };
+        if native.isKindOfClass(objc2::class!(NSPanel)) {
+            native.makeKeyWindow();
+            if !native.isKeyWindow() {
+                return Err("The HUD panel could not obtain keyboard focus".into());
+            }
+            return Ok(());
+        }
+        native.makeKeyAndOrderFront(None);
+        Ok(())
+    })
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]
