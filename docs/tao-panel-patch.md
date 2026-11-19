@@ -6,10 +6,10 @@ On macOS the HUD must be a nonactivating `NSPanel` from the moment it is allocat
 
 | | |
 | --- | --- |
-| Fork | https://github.com/jazzenchen/tao, branch `agent-hud/teardown-release` (the panel commit `4a401fab`, the Windows `04fe4478` and Linux `e5c8659a` commits, then the teardown commit `1f3d6b2f`) |
-| Pinned rev | `1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3` (local only until pushed; see Upgrading) |
+| Fork | https://github.com/JJLi0427/tao, branch `agent-hud/teardown-release` (the panel commit `4a401fab`, the Windows `04fe4478` and Linux `e5c8659a` commits, then the teardown commit `1f3d6b2f`) |
+| Pinned rev | `1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3`, pushed to the fork's `agent-hud/teardown-release` |
 | Base | tag `tao-v0.37.1` (`37b7e8bc90a050e93be988df636f322c3ef147b6`) |
-| Selected by | `[patch.crates-io]` in the root `Cargo.toml`; `Cargo.lock` records the `git+https://github.com/jazzenchen/tao?rev=…` source |
+| Selected by | `[patch.crates-io]` in the root `Cargo.toml`; `Cargo.lock` records the `git+https://github.com/JJLi0427/tao?rev=…` source |
 | License | Apache-2.0, upstream's `LICENSE` and `LICENSE.spdx` unchanged |
 | `tao-macros` | The fork's `Cargo.toml` takes `tao-macros` (Android only) by path, so `Cargo.lock` lists it twice: from crates.io (required by `wry`) and from the fork's git source (required by `tao`). Both are 0.1.4 and Android-only; neither is compiled for desktop targets. |
 
@@ -84,15 +84,17 @@ Status on 2026-10-20: crates.io's latest `tao` is 0.37.1. tauri-apps/tao#1368 (t
 - **When tao 0.37.2 ships** (tauri-apps/tao#1357, which includes tauri-apps/tao#1368): rebase onto tag `tao-v0.37.2` and drop the creation-retain hunk, since upstream makes the same `Retained::from_raw` change. A trial rebase onto upstream `dev` (`176eaef`) on 2026-10-20 conflicted in `Cargo.toml` (keep upstream's new `NSWindowScripting` next to `NSPanel`) and in three `window.rs` hunks: the imports, `create_window` (upstream now returns early with `?`; re-add the panel flags there), and the old `TaoWindow` class block (keep `mod window_class;`). Upstream also moved ObjC callbacks to `extern "C-unwind"` (tauri-apps/tao#1354); do the same in `window_class.rs`.
 - **When tauri-apps/tao#1387 lands**: rewrite `window_class.rs` with `define_class!`. Upstream's `TaoWindow` then owns its ivars and its setter no longer leaks, so the panel becomes a second `define_class!` class with `NSPanel` as superclass and the same ivars. The creation hint is then the only lasting change.
 
-The pinned rev `1f3d6b2f` currently exists only in the local clone at `~/code/tao-agent-hud` (branch `agent-hud/teardown-release`), not on the remote. Cargo resolves it here because that clone's objects were fetched into the local git cache at `~/.cargo/git/db/tao-71f5dc7428779c60`; **any other checkout, CI run or fresh clone will fail to resolve `tao` until the branch is pushed.** To publish, without force-pushing either branch an earlier rev is pinned to:
+The pinned rev `1f3d6b2f` is on the fork's `agent-hud/teardown-release` branch, so any checkout fetches it. The working copy is `~/code/tao-agent-hud`, which has the fork as `jjli` and the upstream fork it was cloned from as `origin`:
 
 ```
-git -C ~/code/tao-agent-hud push origin agent-hud/teardown-release
+git -C ~/code/tao-agent-hud push jjli agent-hud/teardown-release
 ```
 
-Steps:
+Never force-push a branch whose rev is pinned here: older checkouts still fetch it, and GitHub may stop serving an unreachable commit.
 
-1. In a clone of the fork, fetch upstream's tags and start a new branch from the new tag, for example `agent-hud/nonactivating-panel-0.37.2`. Never force-push a branch whose rev is pinned here: older checkouts still fetch it, and GitHub may stop serving an unreachable commit.
+Steps for a new Tao release:
+
+1. In a clone of the fork, fetch upstream's tags and start a new branch from the new tag, for example `agent-hud/nonactivating-panel-0.37.2`.
 2. Re-apply the commit, resolve as above, run `cargo test --lib` in the fork on macOS, and push the branch.
-3. Set the new `rev` in the root `Cargo.toml`, run `cargo check --workspace`, and confirm that the `tao` entry in `Cargo.lock` has the new `git+https://github.com/jazzenchen/tao?rev=…` source. Cargo ignores a `[patch]` whose version no longer satisfies what `tauri-runtime-wry` requires, with only a "patch was not used" warning; check the source again after every Tauri upgrade.
+3. Set the new `rev` in the root `Cargo.toml`, run `cargo check --workspace`, and confirm that the `tao` entry in `Cargo.lock` has the new `git+https://github.com/JJLi0427/tao?rev=…` source. Cargo ignores a `[patch]` whose version no longer satisfies what `tauri-runtime-wry` requires, with only a "patch was not used" warning; check the source again after every Tauri upgrade.
 4. Repeat the creation, focus, close and multi-screen checks in the real app.

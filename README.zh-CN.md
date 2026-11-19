@@ -309,7 +309,7 @@ pnpm run build:macos -- --bundle
 
 在 Windows 或 Linux 上改用 `build:windows` 或 `build:linux`；每条命令只为它所在的系统构建。Tauri 把应用写在 `target/release/bundle` 下。想在没有安装任何 agent 时试用，用 `--demo` 启动，它会用示例数据打开应用。
 
-**修改过的 Tao。** HUD 在 macOS 上必须是一个不抢焦点的面板，不会把你正在用的应用切到后台；上游 Tao 目前还创建不了这种窗口（[tao#414](https://github.com/tauri-apps/tao/issues/414)）。在上游支持之前，工作区从[一个公开的分支](https://github.com/jazzenchen/tao/tree/agent-hud/nonactivating-panel)取 `tao`：在 0.37.1 之上只多一个小提交，在 `Cargo.toml` 里按提交固定，首次构建时由 Cargo 从 GitHub 拉取。改了什么、以后怎样换到新的 Tao 版本，见 [Tao 补丁](docs/tao-panel-patch.md)。
+**修改过的 Tao。** HUD 在 macOS 上必须是一个不抢焦点的面板，不会把你正在用的应用切到后台；上游 Tao 目前还创建不了这种窗口（[tao#414](https://github.com/tauri-apps/tao/issues/414)）。在上游支持之前，工作区从[一个公开的分支](https://github.com/JJLi0427/tao/tree/agent-hud/teardown-release)取 `tao`：在 0.37.1 之上只多一个小提交，在 `Cargo.toml` 里按提交固定，首次构建时由 Cargo 从 GitHub 拉取。改了什么、以后怎样换到新的 Tao 版本，见 [Tao 补丁](docs/tao-panel-patch.md)。
 
 **预览版。** 这个构建正逐项对照原生 Swift 版 [agent-hud-native-open](https://github.com/jazzenchen/agent-hud-native-open)（原 agent-hud-open）的行为，见[对齐清单](docs/parity/README.md)。它暂不安装客户端回调，因此批准、提问与大部分回复仍留在各 agent 自己的提示里。
 

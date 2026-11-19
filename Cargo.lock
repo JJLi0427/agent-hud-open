@@ -4056,7 +4056,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.37.1"
-source = "git+https://github.com/jazzenchen/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3#1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3"
+source = "git+https://github.com/JJLi0427/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3#1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3"
 dependencies = [
  "bitflags 2.13.2",
  "block2",
@@ -4083,7 +4083,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "raw-window-handle",
- "tao-macros 0.1.4 (git+https://github.com/jazzenchen/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3)",
+ "tao-macros 0.1.4 (git+https://github.com/JJLi0427/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3)",
  "unicode-segmentation",
  "url",
  "windows",
@@ -4106,7 +4106,7 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.4"
-source = "git+https://github.com/jazzenchen/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3#1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3"
+source = "git+https://github.com/JJLi0427/tao?rev=1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3#1f3d6b2f286582bb6ae2ff1f2ba85400be7033d3"
 dependencies = [
  "proc-macro2",
  "quote",

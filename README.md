@@ -309,7 +309,7 @@ pnpm run build:macos -- --bundle
 
 Use `build:windows` or `build:linux` on those systems; each command builds only for the system it runs on. Tauri writes the app under `target/release/bundle`. To try the app without any agents, start it with `--demo`, which opens it on sample data.
 
-**A patched Tao.** On macOS the HUD has to be a panel that never takes focus from the app you are using, and upstream Tao cannot create one yet ([tao#414](https://github.com/tauri-apps/tao/issues/414)). Until it can, the workspace takes `tao` from [a public fork](https://github.com/jazzenchen/tao/tree/agent-hud/nonactivating-panel) with one small commit on top of 0.37.1, pinned by revision in `Cargo.toml`; Cargo fetches it from GitHub on the first build. What the commit changes, and how to move it to a new Tao release: [Tao patch](docs/tao-panel-patch.md).
+**A patched Tao.** On macOS the HUD has to be a panel that never takes focus from the app you are using, and upstream Tao cannot create one yet ([tao#414](https://github.com/tauri-apps/tao/issues/414)). Until it can, the workspace takes `tao` from [a public fork](https://github.com/JJLi0427/tao/tree/agent-hud/teardown-release) with one small commit on top of 0.37.1, pinned by revision in `Cargo.toml`; Cargo fetches it from GitHub on the first build. What the commit changes, and how to move it to a new Tao release: [Tao patch](docs/tao-panel-patch.md).
 
 **Preview.** This build is checked against the native Swift app, [agent-hud-native-open](https://github.com/jazzenchen/agent-hud-native-open) (formerly agent-hud-open), behavior by behavior, in the [parity ledger](docs/parity/README.md). It does not install client hooks yet, so approvals, questions and most replies stay in each agent's own prompt.
 

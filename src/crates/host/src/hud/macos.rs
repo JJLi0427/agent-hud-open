@@ -1,6 +1,6 @@
 //! Public AppKit HUD operations. The pinned creation-time adapter allocates an
 //! NSPanel subclass for HUDs while ordinary Tauri windows remain NSWindow.
-use super::{LogicalRect, Point, PointerKeys, Rect, Shared};
+use super::{LogicalRect, Rect, Shared};
 use objc2::MainThreadMarker;
 use objc2::{runtime::NSObjectProtocol, ClassType};
 use objc2_app_kit::{
@@ -23,10 +23,13 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 mod displays;
 #[path = "macos/drag_key.rs"]
 mod drag_key;
+#[path = "macos/pointer.rs"]
+mod pointer;
 #[path = "macos/text_focus.rs"]
 mod text_focus;
 pub(super) use displays::{measure_screens, screen};
 pub(in crate::hud) use drag_key::{begin_drag_key, resign_drag_key};
+pub(in crate::hud) use pointer::{global_pointer, left_mouse_down, pointer_keys};
 pub(super) use text_focus::{begin_text_focus, end_text_focus, TextFocusOrigin};
 
 /// NSEvent reports the pointer in one global point plane across displays.
@@ -121,42 +124,6 @@ pub(super) fn set_drag_cursor(app: &tauri::AppHandle, owner: &Shared, active: bo
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
     fn CGDisplayCreateUUIDFromDisplayID(display: u32) -> Option<NonNull<CFUUID>>;
-    fn CGMainDisplayID() -> u32;
-    fn CGDisplayPixelsHigh(display: u32) -> usize;
-}
-
-pub(super) fn left_mouse_down() -> Result<bool, String> {
-    // NSEvent's public class property reports button state outside our non-key window as
-    // well. This is a state query, not an event tap or global keyboard listener; AX is unused.
-    let buttons: usize = unsafe { objc2::msg_send![objc2::class!(NSEvent), pressedMouseButtons] };
-    Ok(buttons & 1 != 0)
-}
-
-pub(super) fn pointer_keys() -> PointerKeys {
-    // Public class properties also work when this non-key window passes events through.
-    // NSEvent and DOM use the same left/right/middle bits for the first five buttons.
-    let buttons: usize = unsafe { objc2::msg_send![objc2::class!(NSEvent), pressedMouseButtons] };
-    let modifiers: usize = unsafe { objc2::msg_send![objc2::class!(NSEvent), modifierFlags] };
-    PointerKeys {
-        buttons: Some((buttons & 0x1f) as u32),
-        alt: Some(modifiers & (1 << 19) != 0),
-        ctrl: Some(modifiers & (1 << 18) != 0),
-        meta: Some(modifiers & (1 << 20) != 0),
-        shift: Some(modifiers & (1 << 17) != 0),
-    }
-}
-
-pub(super) fn global_pointer(app: &tauri::AppHandle) -> Result<Point, String> {
-    let _ = app;
-    // NSEvent.mouseLocation and CoreGraphics display pixel height are thread-safe global
-    // state queries, just like pressedMouseButtons and modifierFlags above. Reading them
-    // directly avoids waking the main run loop every 32 ms while the pointer is at rest.
-    let point: NSPoint = unsafe { objc2::msg_send![objc2::class!(NSEvent), mouseLocation] };
-    let primary_height = unsafe { CGDisplayPixelsHigh(CGMainDisplayID()) } as f64;
-    Ok(Point {
-        x: point.x,
-        y: primary_height - point.y,
-    })
 }
 
 fn on_main<T: Send + 'static>(
