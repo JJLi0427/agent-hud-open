@@ -70,3 +70,20 @@ export function windowReading<T extends HeldWindow>(
     level: tightest?.status ?? "stale",
   };
 }
+
+/** An agent whose number and level follow the windows the panel shows: a row
+ * the person hid there no longer sets them (Open #91). Its rings already draw
+ * only those (`markWindows`). A mark whose every window was hidden has none to
+ * write, so it writes its last 24 hours as one that reported no window does —
+ * what the panel draws for the same block (QuotaSection.tsx), and what
+ * `vendors.rs` `configured` writes for the menu bar. */
+export function withShownWindows<T extends { quotas: readonly HeldWindow[] }>(
+  vendor: T,
+  shown: readonly HeldWindow[],
+  now: number,
+  usage: () => string | null,
+): T & { usage?: string | null } {
+  if (shown.length === vendor.quotas.length) return vendor;
+  const reading = { ...vendor, ...windowReading(shown, now) };
+  return shown.length ? reading : { ...reading, usage: usage() };
+}

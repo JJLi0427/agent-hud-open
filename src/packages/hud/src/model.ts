@@ -8,7 +8,7 @@ import { agentArtworkKey, agentVendorName } from "./agent-artwork.ts";
 import { layoutMarks, restingAgents } from "./resting-agents.ts";
 import { recentLabel, recentUsage } from "./recent-usage.ts";
 import { visibleBalances } from "./balance-rows.ts";
-import { heldUsed, tightestWindow, windowReading } from "./held-reading.ts";
+import { heldUsed, tightestWindow, withShownWindows } from "./held-reading.ts";
 import { shownRows } from "./quota-rows.ts";
 import type { GlowEffect, GlowStyle } from "./HUDGlow";
 import type { UsageStyle } from "./usage-meter/arcs";
@@ -199,20 +199,6 @@ export function vendorsFromSnapshot(
   return value;
 }
 
-/** An agent whose number and level follow the windows the panel shows: a row
- * the person hid there no longer sets them (Open #91). Its rings already draw
- * only those (`markWindows`). */
-function withShownWindows(
-  vendor: HUDVendor,
-  layout: HUDConfig["panelLayout"],
-  now: number,
-): HUDVendor {
-  const shown = shownRows(vendor.quotas, layout);
-  return shown.length === vendor.quotas.length
-    ? vendor
-    : { ...vendor, ...windowReading(shown, now) };
-}
-
 /** A window's short name, as Core names it (the Swift `shortName`). */
 export function quotaShortName(quota: {
   name: string;
@@ -242,9 +228,15 @@ export function configuredVendors(
   config: HUDConfig,
 ): HUDVendor[] {
   const now = Date.now();
+  const language = snapshotLanguage(snapshot);
   const available = vendorsFromSnapshot(snapshot, config.mode).map((vendor) => {
     if (vendor.quotas.length)
-      return withShownWindows(vendor, config.panelLayout, now);
+      return withShownWindows(
+        vendor,
+        shownRows(vendor.quotas, config.panelLayout),
+        now,
+        () => recentLabel(recentUsage(snapshot, vendor.key), language),
+      );
     if (vendor.key !== "deepseek") return vendor;
     const rows = snapshot.billing.filter(
       (row) => vendorKey(row.vendor) === vendor.key,
