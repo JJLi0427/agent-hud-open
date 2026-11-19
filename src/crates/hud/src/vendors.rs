@@ -163,6 +163,13 @@ pub fn configured<'a>(
                 .and_then(|(_, q)| q["status"].as_str())
                 .unwrap_or("stale");
         }
+        // A mark whose windows the layout all hid has none to write either, so
+        // it writes its last 24 hours as one that reported no window does —
+        // what the panel draws for the same block (QuotaSection.tsx). Without
+        // it the mark stands over a bare "--" beside agents that show a number.
+        if vendor.usage.is_none() && !vendor.quotas.is_empty() && shown.is_empty() {
+            vendor.usage = recent_label(snapshot, &vendor.key);
+        }
         if vendor.key == "deepseek" && vendor.quotas.is_empty() && vendor.balance.is_some() {
             let block = list(snapshot, "billing")
                 .find(|b| mark(b["vendor"].as_str().unwrap_or("")) == vendor.key)

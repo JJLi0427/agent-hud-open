@@ -378,3 +378,39 @@ fn domestic_agent_variants_stay_separate_marks_and_vendors() {
         ]
     );
 }
+
+/// A mark whose one window the panel's layout hid has none the HUD may write,
+/// so it writes its last 24 hours instead of a bare "--": the same block the
+/// panel draws for it (QuotaSection.tsx). OpenAI is the case that found this:
+/// signed in through another client's models, its only window is a monthly
+/// limit the layout hides, and its calls are all in the ledger.
+#[test]
+fn a_mark_whose_windows_the_layout_hid_writes_its_last_24_hours() {
+    let now = chrono::DateTime::parse_from_rfc3339("2026-10-21T12:00:00Z")
+        .unwrap()
+        .timestamp_millis();
+    let snapshot = json!({
+        "language": "en",
+        "quotas": [
+            {"id": "codex:a:codex", "vendor": "codex", "name": "Monthly limit",
+             "usedPercent": 0.0, "status": "normal", "resetAt": null,
+             "accountId": "account:a", "legacyWindowId": "account:a/codex"}
+        ],
+        "billing": [],
+        "providers": [{"id": "codex", "detected": true, "enabled": true,
+                       "recent": {"tokens": 5_700_000, "costs": {}, "unpricedTokens": 5_700_000}}],
+        "approvals": [],
+        "sessions": []
+    });
+    let hidden = json!({"blocks": {"codex": {"hiddenRows": ["account:a/codex"]}}});
+    let rows = configured(&snapshot, "simple", &hidden, now);
+    let openai = rows.iter().find(|row| row.key == "openai").unwrap();
+    // No window to write, so the 24 hours stand in its place.
+    assert_eq!(openai.used, None);
+    assert_eq!(meter_label(openai, false), "5.7M");
+
+    // Shown, the window comes first: the hidden case is only for none.
+    let shown = configured(&snapshot, "simple", &json!({"blocks": {}}), now);
+    let openai = shown.iter().find(|row| row.key == "openai").unwrap();
+    assert_eq!(meter_label(openai, false), "0%");
+}
